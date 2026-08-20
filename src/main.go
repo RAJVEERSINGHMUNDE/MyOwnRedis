@@ -3,24 +3,31 @@ package main
 import (
 	"fmt"
 	"net"
-	"os"
 	"strings"
 )
 
 func main() {
+	fmt.Println("Listening on port :6379")
 
-	fmt.Println("Listening on port 6379")
-
+	// Create a new server
 	l, err := net.Listen("tcp", ":6379")
 	if err != nil {
 		fmt.Println(err)
-		os.Exit(1)
+		return
 	}
 
+	aof, err := NewAof("database.aof")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer aof.Close()
+
+	// Listen for connections
 	conn, err := l.Accept()
 	if err != nil {
 		fmt.Println(err)
-		os.Exit(1)
+		return
 	}
 
 	defer conn.Close()
@@ -53,6 +60,10 @@ func main() {
 			fmt.Println("Invalid command: ", command)
 			writer.Write(Value{typ: "string", str: ""})
 			continue
+		}
+
+		if command == "SET" || command == "HSET" {
+			aof.Write(value)
 		}
 
 		result := handler(args)
